@@ -229,7 +229,7 @@ fi
 if [ -d "$HOME/.spf13-vim-3" ]
 then
     msg "Updating spf13-vim"
-    cd $HOME/.spf13-vim
+    cd $HOME/.spf13-vim-3
     git pull
     vim "+set nomore" +BundleInstall! +BundleClean +qall
     success "Updated spf13-vim"
