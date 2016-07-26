@@ -169,6 +169,10 @@ set tm=500
 
 set nrformats=octal,hex
 
+let g:syntastic_go_checkers = ['gometalinter']
+
+let g:syntastic_mode_map = {'mode': 'active', 'active_filetypes': ['go']}
+
 let g:snips_author = 'Joshua Barone <joshua.barone@gmail.com>'
 
 let g:tagbar_type_go = {
