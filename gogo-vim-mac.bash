@@ -41,97 +41,143 @@ error() {
 }
 
 program_exists() {
-    local ret='0'
-    command -v $1 >/dev/null 2>&1 || { local ret='1'; }
+    return $( which -s "$1" )
+}
 
-    # fail on non-zero return value
-    if [ "$ret" -ne 0 ]
-    then
-        return 1
+brew_formula_exists() {
+    if ! program_exists brew; then
+        error "Homebrew is not installed"
     fi
 
-    return 0
+    if brew list -1 | grep -q "^$1\$"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function_exists() {
+    return $( declare -f "$1" >/dev/null )
 }
 
 ############################## MAIN()
 
-if [ -z "$HOME" ]
-then
+if [ -z "$HOME" ]; then
     error "You must have your \$HOME environment variable set"
 fi
 
-if [ -z "$GOPATH" ]
-then
-    msg "Configuring environment"
-    cat >>"$HOME/.profile" <<EOF
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin
-EOF
-    source $HOME/.profile
-    success "Environment is configured"
-fi
-
-program_exists "brew"
-if [ "$?" -ne 0 ]
-then
-    # Install Homebrew
-    msg "Installing Brew"
+if ! program_exists "brew"; then
+    msg "Installing Homebrew"
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-    success "Brew successfully installed"
+    if [ "$?" -ne 0 ]; then
+        error "Error installing Homebrew"
+    else
+        success "Brew successfully installed"
+    fi
 fi
 
-if [ ! -d `brew --prefix`/Library/Taps/caskroom/homebrew-fonts ]
-then
+if [ ! -d `brew --prefix`/Library/Taps/caskroom/homebrew-fonts ]; then
     msg "Installing Hack font"
     brew tap caskroom/fonts
+    if [ "$?" -ne 0 ]; then
+        error "Error tapping caskroom/fonts"
+    fi
     brew cask install font-hack
+    if [ "$?" -ne 0 ]; then
+        error "Error installing Hack font"
+    fi
     success "Hack font installed"
 fi
 
-program_exists "go"
-if [ "$?" -ne 0 ]
-then
-    # Install Go
-    msg "Installing Go"
-    brew install go
-    success "Go successfully installed"
-fi
-
-program_exists "impl"
-if [ "$?" -ne 0 ]
-then
-    msg "Installing Impl"
-    go get -u github.com/josharian/impl
-    success "Impl successfully installed"
-fi
-
-program_exists "mvim"
-if [ "$?" -ne 0 ]
-then
+if ! program_exists "mvim"; then
     msg "Installing MacVim"
-    brew install macvim --with-cscope --with-lua --override-system-vim
+    brew install macvim --with-cscope --with-lua --with-override-system-vim
+    if [ "$?" -ne 0 ]; then
+        error "Error installing MacVim"
+    fi
     brew linkapps macvim
+    if [ "$?" -ne 0 ]; then
+        error "Error linking MacVim"
+    fi
     success "Macvim successfully installed"
 fi
 
-program_exists "curl"
-if [ "$?" -ne 0 ]
-then
-    msg "Installing curl"
-    brew install curl
-    success "Curl successfully installed"
+if ! brew_formula_exists "bash-completion"; then
+    msg "Installing bash-completion"
+    brew install bash-completion
+    if [ "$?" -ne 0 ]; then
+        error "Error installing bash-completion"
+    fi
+    success "bash-completion successfully installed"
 fi
 
-if [ ! -f "$HOME/.vimrc.before.local" ]
-then
+if ! brew_formula_exists "git"; then
+    msg "Installing git"
+    brew install git
+    if [ "$?" -ne 0 ]; then
+        error "Error installing git"
+    fi
+    success "git successfully installed"
+fi
+
+if ! brew_formula_exists "python"; then
+    msg "Installing python"
+    brew install python
+    if [ "$?" -ne 0 ]; then
+        error "Error installing python"
+    fi
+    success "python successfully installed"
+fi
+
+if ! function_exists "virtualenvwrapper"; then
+    msg "Installing virtualenvwrapper"
+    pip install virtualenvwrapper
+    if [ "$?" -ne 0 ]; then
+        error "Error installing virtualenvwrapper"
+    fi
+    success "virtualenvwrapper successfully installed"
+fi
+
+if ! brew_formula_exists "ctags"; then
+    msg "Installing ctags"
+    brew install ctags
+    if [ "$?" -ne 0 ]; then
+        error "Error installing ctags"
+    fi
+    success "ctags successfully installed"
+fi
+
+if ! program_exists "go"; then
+    msg "Installing Go"
+    brew install go
+    if [ "$?" -ne 0 ]; then
+        error "Error installing Go"
+    fi
+    success "Go successfully installed"
+fi
+
+msg "Downloading .bash_profile for Mac"
+curl -L -o "$HOME/.bash_profile" https://gist.githubusercontent.com/jbarone/d84cca4624349746cd1c0ef48d0102da/raw/mac_bash_profile
+source "$HOME/.bash_profile"
+success ".bash_profile setup"
+
+if ! program_exists "impl"; then
+    msg "Installing Impl"
+    go get -u github.com/josharian/impl
+    if [ "$?" -ne 0 ]; then
+        error "Error installing Impl"
+    fi
+    success "Impl successfully installed"
+fi
+
+if [ ! -f "$HOME/.vimrc.before.local" ]; then
     msg "Setting up .vimrc.before.local"
     echo "let g:spf13_bundle_groups=['general', 'writing', 'programming', 'neocomplete', 'php', 'python', 'javascript', 'html', 'ruby', 'go', 'misc', ]" >"$HOME/.vimrc.before.local"
     echo "let g:airline_powerline_fonts=1" >>"$HOME/.vimrc.before.local"
     success "Created .vimrc.before.local"
 fi
 
-if [ ! -f "$HOME/.vimrc.bundles.local" ]
-then
+if [ ! -f "$HOME/.vimrc.bundles.local" ]; then
     msg "Setting up .vimrc.bundles.local"
     cat >"$HOME/.vimrc.bundles.local" <<EOF
 if count(g:spf13_bundle_groups, 'programming')
@@ -148,8 +194,7 @@ EOF
     success "Created .vimrc.bundles.local"
 fi
 
-if [ ! -f "$HOME/.vimrc.local" ]
-then
+if [ ! -f "$HOME/.vimrc.local" ]; then
     msg "Setting up .vimrc.local"
     cat >"$HOME/.vimrc.local" <<EOF
 set timeout
@@ -226,8 +271,7 @@ EOF
     success "Created .vimrc.local"
 fi
 
-if [ -d "$HOME/.spf13-vim-3" ]
-then
+if [ -d "$HOME/.spf13-vim-3" ]; then
     msg "Updating spf13-vim"
     cd $HOME/.spf13-vim-3
     git pull
